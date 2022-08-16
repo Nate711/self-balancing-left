@@ -49,16 +49,16 @@ Fcm.Translate(Do,LD*Dx>)
 FN.Translate(Fcm,-R*Dz>)
 
 % --- LOOP EQUATION ---
-Loop> = R*Bz> + LD*Dx> - R*Dz>
-LoopEqn[1] = Dot(Nz>,Loop>)
-SolveDt(LoopEqn[1],qD)
+% Loop> = R*Bz> + LD*Dx> - R*Dz>
+% LoopEqn[1] = Dot(Nz>,Loop>)
+% SolveDt(LoopEqn[1],qD)
 
 % --- ROLLING CONSTRAINTS ---
 RollingConstraint[1] = Dot(CN.GetVelocity(N), Ax>)
 SolveDt(RollingConstraint[1] = 0,  v)
-RollingConstraint2[1] = Dot(FN.GetVelocity(N), Dx>)
-RollingConstraint2[2] = Dot(FN.GetVelocity(N), Dy>)
-SolveDt(RollingConstraint2 = 0,  wF, qA')
+% RollingConstraint2[1] = Dot(FN.GetVelocity(N), Dx>)
+% RollingConstraint2[2] = Dot(FN.GetVelocity(N), Dy>)
+% SolveDt(RollingConstraint2 = 0,  wF, qA')
 
 % --- ADD RELEVANT FORCES ---
 System.AddForceGravity(-g*Nz>)
@@ -77,9 +77,13 @@ ME = KE - work
 
 % --- INPUT ---
 Input qA = 0 deg
+Input qA' = 0 deg/sec % Get rid of this
 Input qB = 10 deg
 Input qB' = 0 deg/sec
 Input wC = 10 rad/sec
+Input wF = 10 rad/sec
+Input qD = 90 deg % Get rid of this
+Input qD' = 0 deg/sec % Get rid of this
 
 % --- POST PROCESS ---
 Variable qC' = wC
