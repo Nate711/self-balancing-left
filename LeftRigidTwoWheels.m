@@ -4,7 +4,7 @@
 
 % --- FRAMES, BODIES, POINTS ---
 NewtonianFrame N
-RigidFrame A, B, E
+RigidFrame A, B
 RigidBody C, D, F
 Point CN(C)
 Point FN(F)
@@ -21,7 +21,6 @@ Constant LD = 0.76 m
 Constant HD = 0.61 m
 Constant WD = 0.14 m
 
-Constant qE = 10 deg
 Variable qA'', qB'', wC', qD'', wF'
 Variable v'
 
@@ -31,15 +30,14 @@ C.SetInertia(Ccm, B, J = 0.25*mWheel*R^2, I = 2*J, J)
 D.SetMass(mD)
 D.SetInertia(Dcm, 1/12*mD*(HD^2+WD^2), 1/12*mD*(LD^2+HD^2), 1/12*mD*(LD^2+WD^2));
 F.SetMass(mWheel)
-F.SetInertia(Fcm, E, J = 0.25*mWheel*R^2, I = 2*J, J)
+F.SetInertia(Fcm, D, J = 0.25*mWheel*R^2, I = 2*J, J)
 
 % --- ROTATIONAL KINEMATICS ---
 A.RotatePositiveZ(N,qA)
 B.RotatePositiveX(A,qB)
 C.SetAngularVelocityAcceleration(B,wC*By>)
 D.RotateNegativeY(B,qD)
-E.RotatePositiveZ(D,qE)
-F.SetAngularVelocityAcceleration(E,wF*Ey>)
+F.SetAngularVelocityAcceleration(D,wF*Dy>)
 
 % --- TRANSLATIONAL KINEMATICS ---
 P.SetVelocityAcceleration(N,v*Ax>)
@@ -48,18 +46,19 @@ CN.SetPositionVelocity(Ccm,-R*Bz>)
 Do.Translate(Ccm,0>)
 Dcm.Translate(Do,LD/2*Dx>+HD/2*Dz>)
 Fcm.Translate(Do,LD*Dx>)
-FN.Translate(Fcm,-R*Ez>)
+FN.Translate(Fcm,-R*Dz>)
 
 % --- LOOP EQUATION ---
-LoopEqn> = R*Bz> + LD*Dx> - R*Ez>
-LoopEqn[1] = Dot(Nz>,LoopEqn>)
+Loop> = R*Bz> + LD*Dx> - R*Dz>
+LoopEqn[1] = Dot(Nz>,Loop>)
 SolveDt(LoopEqn[1],qD)
 
 % --- ROLLING CONSTRAINTS ---
 RollingConstraint[1] = Dot(CN.GetVelocity(N), Ax>)
 SolveDt(RollingConstraint[1] = 0,  v)
-RollingConstraint[2] = Dot(FN.GetVelocity(N), Ex>)
-SolveDt(RollingConstraint[2] = 0,  wF)
+RollingConstraint2[1] = Dot(FN.GetVelocity(N), Dx>)
+RollingConstraint2[2] = Dot(FN.GetVelocity(N), Dy>)
+SolveDt(RollingConstraint2 = 0,  wF, qA')
 
 % --- ADD RELEVANT FORCES ---
 System.AddForceGravity(-g*Nz>)
@@ -78,7 +77,6 @@ ME = KE - work
 
 % --- INPUT ---
 Input qA = 0 deg
-Input qA' = 0 deg/sec
 Input qB = 10 deg
 Input qB' = 0 deg/sec
 Input wC = 10 rad/sec
@@ -115,4 +113,4 @@ Output t sec, xC m, yC m, zC m, xD m, yD m, zD m, xF m, yF m, zF m, qA deg, qB d
 
 % --- SOLVE ---
 SystemEqns = [KaneDynamics]
-ODE(SystemEqns := 0, qA'', qB'', wC', qD'', wF') MGLLeftRigidTwoWheels
+ODE(SystemEqns := 0, qA'', qB'', wC', qD'', wF') MGLeftRigidTwoWheels
