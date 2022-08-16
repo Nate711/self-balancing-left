@@ -16,9 +16,9 @@ Constant mD = 20 kg
 Constant g = 9.8 m/s^2 
 
 Constant R  = 0.1 m
-Constant LD = 1 m
-Constant HD = 0.5 m
-Constant WD = 0.2 m
+Constant LD = 0.76 m
+Constant HD = 0.61 m
+Constant WD = 0.14 m
 
 Variable qA'', qB'', wC', qD''
 Variable v'
