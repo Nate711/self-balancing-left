@@ -40,7 +40,7 @@ P.SetVelocityAcceleration(N,v*Ax>)
 Ccm.Translate(P,R*Bz>)
 CN.SetPositionVelocity(Ccm ,-R*Bz>)
 Do.Translate(Ccm,0>)
-Dcm.Translate(Do,LD/2*Dx>+HD/2*Dz>)
+Dcm.Translate(Do,LD/2*Dx> + HD/2*Dz>)
 
 % --- ROLLING CONSTRAINTS ---
 RollingConstraint[1] = Dot(CN.GetVelocity(N), Ax>)
@@ -82,12 +82,12 @@ Variable zD' = Dot(Nz>,v_Dcm_N>)
 
 Input qC = 0 rad
 
-Input xC = EvaluateToNumber(Dot(Nx>,R*Bz>))
-Input yC = EvaluateToNumber(Dot(Ny>,R*Bz>))
-Input zC = EvaluateToNumber(Dot(Nz>,R*Bz>))
-Input xD = EvaluateToNumber(Dot(Nx>,R*Bz>+LD/2*Bx>+HD/2*Bz>))
-Input yD = EvaluateToNumber(Dot(Ny>,R*Bz>+LD/2*Bx>+HD/2*Bz>))
-Input zD = EvaluateToNumber(Dot(Nz>,R*Bz>+LD/2*Bx>+HD/2*Bz>))
+Input xC = EvaluateToNumber(Dot(Nx>, R*Bz>))
+Input yC = EvaluateToNumber(Dot(Ny>, R*Bz>))
+Input zC = EvaluateToNumber(Dot(Nz>, R*Bz>)) 
+Input xD = EvaluateToNumber(Dot(Nx>, R*Bz> + LD/2*Dx> + HD/2*Dz>))
+Input yD = EvaluateToNumber(Dot(Ny>, R*Bz> + LD/2*Dx> + HD/2*Dz>))
+Input zD = EvaluateToNumber(Dot(Nz>, R*Bz> + LD/2*Dx> + HD/2*Dz>))
 
 % --- INTEGRATION PARAMETERS ---
 Input  tFinal = 2 sec,  tStep = 0.005 sec,  absError = 1.0E-08

@@ -84,7 +84,7 @@ if __name__ == "__main__":
             N_R_C = N_R_A @ A_R_B @ B_R_C
             N_R_D = N_R_A @ A_R_B @ B_R_D
 
-            C_transform[0:3, 0:3] = N_R_D
+            C_transform[0:3, 0:3] = N_R_C
             C_transform[0:3, 3] = np.array([xC, yC, zC])
             frame["C"].set_transform(C_transform)
             frame["C_tick"].set_transform(C_transform)
