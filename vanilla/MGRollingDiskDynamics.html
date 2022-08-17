@@ -1,0 +1,503 @@
+<!DOCTYPE html><HTML LANG="en"><HEAD><TITLE>MotionGenesis: MGRollingDiskDynamics.html</TITLE><STYLE>.BoldDarkBlueNoWrap {font-weight:bold; color:darkBlue; white-space:nowrap;}</STYLE></HEAD>
+<BODY STYLE="background-color:#FFFFFF; margin:8px 0px 0px 8px">
+<DIV class="BoldDarkBlueNoWrap"><SPAN STYLE="font-size:large;">MGRollingDiskDynamics.html</SPAN> &nbsp; <SPAN STYLE="font-size:small;">(MotionGenesis input/output)</SPAN>.</DIV>
+<PRE>
+   (1) % MotionGenesis file:  RollingDiskDynamics.txt
+   (2) % Copyright (c) 2018 Motion Genesis LLC.  All rights reserved.
+   (3) % Problem: Simulation of a rolling disk.
+   (4) %--------------------------------------------------------------------
+   (5) NewtonianFrame  A                 % Horizontal plane.
+   (6) RigidFrame      B, C              % Heading and tilt reference frames.
+   (7) RigidBody       D                 % Rolling disk.
+   (8) RigidBody       E
+   (9) Point           DA( D )           % Point of D in contact with A.
+   (10) %--------------------------------------------------------------------
+   (11) Variable  wx',  wy',  wz'         % Disk D's angular velocity in A.
+   (12) Variable  x'',  y''               % Locates contact point DA from No.
+   (13) Variable  qH',  qL',  qS'         % Heading angle, lean angle, spin angle.
+   (14) Variable  qE''
+   (15) Constant  r = 0.1 meters          % Radius of disk 
+   (16) Constant  g = 9.8   m/s^2         % Earth's gravitational acceleration.
+   (17) Constant  b = 0 N*m*s/rad         % Aerodynamic damping on disk.
+   (18) Constant mD = 1 kg
+   (19) Constant IDxx = mD / 4 * R^2
+-> (20) IDxx = 0.25*mD*r^2
+
+   (21) Constant IDyy = mD / 2 * R^2
+-> (22) IDyy = 0.5*mD*r^2
+
+   (23) Constant IDzz = mD / 4 * R^2
+-> (24) IDzz = 0.25*mD*r^2
+
+   (25) Constant mE = 20 kg
+   (26) Constant LE = 0.76 m
+   (27) Constant HE = 0.61 m
+   (28) Constant WE = 0.14 m 
+   (29) Constant IExx = 1/12 * mE * (HE^2 + WE^2)
+-> (30) IExx = 0.08333333*mE*(HE^2+WE^2)
+
+   (31) Constant IEyy = 1/12 * mE * (LE^2 + HE^2)
+-> (32) IEyy = 0.08333333*mE*(HE^2+LE^2)
+
+   (33) Constant IEzz = 1/12 * mE * (LE^2 + WE^2)
+-> (34) IEzz = 0.08333333*mE*(LE^2+WE^2)
+
+   (35) D.SetMassInertia( mD, Dcm, C, IDxx, IDyy, IDzz )
+   (36) E.SetMassInertia( mE, IExx, IEyy, IEzz )
+   (37) %--------------------------------------------------------------------
+   (38) %   Rotational kinematics.
+   (39) B.RotatePositiveZ( A, qH )
+-> (40) B_A = [cos(qH), sin(qH), 0;  -sin(qH), cos(qH), 0;  0, 0, 1]
+-> (41) w_B_A> = qH'*Bz>
+
+   (42) C.RotateNegativeX( B, qL )
+-> (43) C_B = [1, 0, 0;  0, cos(qL), -sin(qL);  0, sin(qL), cos(qL)]
+-> (44) w_C_B> = -qL'*Cx>
+-> (45) w_C_A> = qH'*Bz> - qL'*Cx>
+
+   (46) D.RotatePositiveY( C, qS )
+-> (47) D_C = [cos(qS), 0, -sin(qS);  0, 1, 0;  sin(qS), 0, cos(qS)]
+-> (48) w_D_C> = qS'*Dy>
+-> (49) w_D_A> = -qL'*Cx> + (qS'-sin(qL)*qH')*Cy> + cos(qL)*qH'*Cz>
+
+   (50) E.RotatePositiveY( C, qE )
+-> (51) E_C = [cos(qE), 0, -sin(qE);  0, 1, 0;  sin(qE), 0, cos(qE)]
+-> (52) w_E_C> = qE'*Ey>
+-> (53) w_E_A> = (-cos(qE)*qL'-sin(qE)*cos(qL)*qH')*Ex> + (qE'-sin(qL)*qH')*Ey>
+        + (cos(qE)*cos(qL)*qH'-sin(qE)*qL')*Ez>
+
+-> (54) alf_E_C> = qE''*Ey>
+
+   (55) %---------------------------------------------------------------
+   (56) %   For efficient dynamics, make a change of variable.
+   (57) wDA> = D.GetAngularVelocity( A )
+-> (58) wDA> = -qL'*Cx> + (qS'-sin(qL)*qH')*Cy> + cos(qL)*qH'*Cz>
+
+   (59) ChangeVariables[1] = wx - Dot( wDA>, Cx> )
+-> (60) ChangeVariables[1] = wx + qL'
+
+   (61) ChangeVariables[2] = wy - Dot( wDA>, Cy> )
+-> (62) ChangeVariables[2] = wy + sin(qL)*qH' - qS'
+
+   (63) ChangeVariables[3] = wz - Dot( wDA>, Cz> )
+-> (64) ChangeVariables[3] = wz - cos(qL)*qH'
+
+   (65) Solve( ChangeVariables = 0,  qH', qL', qS' )
+-> (66) qH' = wz/cos(qL)
+-> (67) qL' = -wx
+-> (68) qS' = wy + wz*tan(qL)
+
+   (69) %---------------------------------------------------------------
+   (70) %   Use the simpler version of angular velocity from here on.
+   (71) D.SetAngularVelocity( A,  wx*Cx> + wy*Cy> + wz*Cz> )
+-> (72) w_D_A> = wx*Cx> + wy*Cy> + wz*Cz>
+
+   (73) %--------------------------------------------------------------------
+   (74) %   Form angular acceleration (differentiating in D is more efficient).
+   (75) alf_D_A> = Dt( D.GetAngularVelocity(A), D )
+-> (76) alf_D_A> = (wx'-wz*qS')*Cx> + wy'*Cy> + (wz'+wx*qS')*Cz>
+
+   (77) %---------------------------------------------------------------
+   (78) %   Translational kinematics.
+   (79) Dcm.Translate( Ao,  x*Ax> + y*Ay> + r*Cz> )
+-> (80) p_Ao_Dcm> = x*Ax> + y*Ay> + r*Cz>
+-> (81) v_Dcm_A> = x'*Ax> + y'*Ay> - r*sin(qL)*qH'*Cx> + r*qL'*Cy>
+-> (82) a_Dcm_A> = x''*Ax> + y''*Ay> - r*sin(qL)*qH'^2*By> - r*(2*cos(qL)^3*qH'
+        *qL'+sin(qL)*(cos(qL)*wz'+wz*sin(qL)*qL'))/cos(qL)^2*Cx> - r*wx'*Cy> - r*qL'^2*Cz>
+
+   (83) DA.SetPositionVelocity( Dcm,  -r*Cz> )
+-> (84) p_Dcm_DA> = -r*Cz>
+-> (85) v_DA_A> = x'*Ax> + y'*Ay> - r*(wy+sin(qL)*qH')*Cx> + r*(wx+qL')*Cy>
+
+   (86) Eo.Translate( Dcm, 0> )
+-> (87) p_Dcm_Eo> = 0>
+-> (88) v_Eo_A> = x'*Ax> + y'*Ay> - r*sin(qL)*qH'*Cx> + r*qL'*Cy>
+-> (89) a_Eo_A> = x''*Ax> + y''*Ay> - r*sin(qL)*qH'^2*By> - r*(2*cos(qL)^3*qH'*
+        qL'+sin(qL)*(cos(qL)*wz'+wz*sin(qL)*qL'))/cos(qL)^2*Cx> - r*wx'*Cy> - r*qL'^2*Cz>
+
+   (90) Ecm.Translate( Eo, LE/2 * Ex> + HE/2 * Ez> )
+-> (91) p_Eo_Ecm> = 0.5*LE*Ex> + 0.5*HE*Ez>
+-> (92) v_Ecm_A> = x'*Ax> + y'*Ay> - r*sin(qL)*qH'*Cx> + (r*qL'+0.5*HE*(cos(qE)
+        *qL'+sin(qE)*cos(qL)*qH')-0.5*LE*(sin(qE)*qL'-cos(qE)*cos(qL)*qH'))*Cy>
+        + 0.5*HE*(qE'-sin(qL)*qH')*Ex> - 0.5*LE*(qE'-sin(qL)*qH')*Ez>
+
+-> (93) a_Ecm_A> = x''*Ax> + y''*Ay> - r*sin(qL)*qH'^2*By> - r*(2*cos(qL)^3*qH'
+        *qL'+sin(qL)*(cos(qL)*wz'+wz*sin(qL)*qL'))/cos(qL)^2*Cx> + (-r*wx'-0.5*
+        (qE'-sin(qL)*qH')*(LE*(cos(qE)*qL'+sin(qE)*cos(qL)*qH')+HE*(sin(qE)*qL'
+        -cos(qE)*cos(qL)*qH'))-0.5*HE*(cos(qE)*wx'+sin(qE)*qE'*qL'+sin(qE)*sin(
+        qL)*qH'*qL'-sin(qE)*wz'-cos(qE)*cos(qL)*qE'*qH'-wz*sin(qE)*tan(qL)*qL')
+        -0.5*LE*(cos(qE)*qE'*qL'+sin(qE)*cos(qL)*qE'*qH'+sin(qL)*cos(qE)*qH'*
+        qL'-sin(qE)*wx'-cos(qE)*wz'-wz*cos(qE)*tan(qL)*qL'))*Cy> - r*qL'^2*Cz>
+        + (0.5*(sin(qE)*qL'-cos(qE)*cos(qL)*qH')*(HE*(cos(qE)*qL'+sin(qE)*cos(
+        qL)*qH')-LE*(sin(qE)*qL'-cos(qE)*cos(qL)*qH'))-0.5*LE*(qE'-sin(qL)*qH')^2
+        -0.5*HE*(cos(qL)*qH'*qL'+sin(qL)*(cos(qL)*wz'+wz*sin(qL)*qL')/cos(qL)^2
+        -qE''))*Ex> + (0.5*LE*(cos(qL)*qH'*qL'+sin(qL)*(cos(qL)*wz'+wz*sin(qL)*
+        qL')/cos(qL)^2-qE'')-0.5*HE*(qE'-sin(qL)*qH')^2-0.5*(cos(qE)*qL'+sin(
+        qE)*cos(qL)*qH')*(HE*(cos(qE)*qL'+sin(qE)*cos(qL)*qH')-LE*(sin(qE)*qL'-
+        cos(qE)*cos(qL)*qH')))*Ez>
+
+   (94) %--------------------------------------------------------------------
+   (95) %   v_DA_A> is simpler if explicit in wx, wy, wz.
+   (96) Explicit( v_DA_A>,   wx, wy, wz )
+-> (97) v_DA_A> = x'*Ax> + y'*Ay> - r*(wy+wz*tan(qL))*Cx>
+
+   (98) %---------------------------------------------------------------
+   (99) %   Motion constraints (D rolls on A at point DA).
+   (100) RollingConstraint[1] = Dot( DA.GetVelocity(A), Bx> )
+-> (101) RollingConstraint[1] = sin(qH)*y' + cos(qH)*x' - r*(wy+wz*tan(qL))
+
+   (102) RollingConstraint[2] = Dot( DA.GetVelocity(A), By> )
+-> (103) RollingConstraint[2] = cos(qH)*y' - sin(qH)*x'
+
+   (104) SolveDt( RollingConstraint = 0,  x', y' )
+-> (105) x' = r*cos(qH)*(wy+wz*tan(qL))
+-> (106) y' = r*sin(qH)*(wy+wz*tan(qL))
+-> (107) x'' = r*cos(qH)*(wy'+tan(qL)*wz'+wz*qL'/cos(qL)^2) - qH'*y'
+-> (108) y'' = qH'*x' + r*sin(qH)*(wy'+tan(qL)*wz'+wz*qL'/cos(qL)^2)
+
+   (109) %--------------------------------------------------------------------
+   (110) %   Motion constraints make v_Dcm_A> and a_Dcm_A> simpler if expressed in C.
+   (111) v_Dcm_A> := Express( Explicit(v_Dcm_A>, wx, wy, wz),  C )
+-> (112) v_Dcm_A> = r*wy*Cx> - r*wx*Cy>
+
+   (113) a_Dcm_A> := Express( Explicit(a_Dcm_A>, wx, wy, wz),  C )
+-> (114) a_Dcm_A> = r*(wx*wz+wy')*Cx> + r*(wy*wz-wx')*Cy> - r*(wx^2-wy*wz*tan(
+         qL))*Cz>
+
+   (115) v_Ecm_A> := Express( Explicit(v_Ecm_A>, wx, wy, wz), C )
+-> (116) v_Ecm_A> = (r*wy+0.5*LE*sin(qE)*(wz*tan(qL)-qE')-0.5*HE*cos(qE)*(wz*
+         tan(qL)-qE'))*Cx> + (0.5*LE*(wx*sin(qE)+wz*cos(qE))-r*wx-0.5*HE*(wx*
+         cos(qE)-wz*sin(qE)))*Cy> + 0.5*(HE*sin(qE)+LE*cos(qE))*(wz*tan(qL)-qE')*Cz>
+
+   (117) a_Ecm_A> := Express( Explicit(a_Ecm_A>, wx, wy, wz), C )
+-> (118) a_Ecm_A> = (r*wx*wz*(2+tan(qL)^2)-0.5*wz*(LE*(wz*cos(qE)+2*wx*sin(qE))
+         -HE*(2*wx*cos(qE)-wz*sin(qE)))-r*(wx*wz/cos(qL)^2-wy')-0.5*sin(qE)*(
+         HE*(wz*tan(qL)-qE')^2+LE*(sin(qL)*(wx*wz*sin(qL)-cos(qL)*wz')/cos(qL)^2
+         +qE''))-0.5*cos(qE)*(LE*(wz*tan(qL)-qE')^2-HE*(sin(qL)*(wx*wz*sin(qL)-
+         cos(qL)*wz')/cos(qL)^2+qE'')))*Cx> + (r*wy*wz+0.5*LE*(sin(qE)*wx'+cos(
+         qE)*wz'+wx*cos(qE)*qE'-wz*sin(qE)*qE')-r*wx'-0.5*HE*(cos(qE)*wx'-sin(
+         qE)*wz'-wx*sin(qE)*qE'-wz*cos(qE)*qE')-0.5*(HE*(wx*sin(qE)+wz*cos(qE))
+         +LE*(wx*cos(qE)-wz*sin(qE)))*(wz*tan(qL)-qE'))*Cy> + (r*wy*wz*tan(qL)+
+         0.5*sin(qE)*(LE*(wz*tan(qL)-qE')^2-HE*(sin(qL)*(wx*wz*sin(qL)-cos(qL)*
+         wz')/cos(qL)^2+qE''))-r*wx^2-0.5*wx^2*(HE*cos(qE)-LE*sin(qE))-0.5*cos(
+         qE)*(HE*(wz*tan(qL)-qE')^2+LE*(sin(qL)*(wx*wz*sin(qL)-cos(qL)*wz')/cos
+         (qL)^2+qE'')))*Cz>
+
+   (119) %---------------------------------------------------------------
+   (120) %   Add relevant contact and distance force/torques.
+   (121) %   Note: Aerodynamic damping affects wx most, wy least.
+   (122) System.AddForceGravity( -g * Az> )
+-> (123) Force_Dcm> = -g*mD*Az>
+-> (124) Force_Ecm> = -g*mE*Az>
+
+   (125) %------------------------------------------------------------
+   (126) %   Optional: Form and simplify Kane's equations of motion.
+   (127) SetGeneralizedSpeed( wx, wy, wz, qE' )
+   (128) KaneDynamics = System.GetDynamicsKane()
+-> (129) KaneDynamics[1] = 0.5*g*sin(qL)*(2*mD*r+mE*(2*r+HE*cos(qE)-LE*sin(qE)))
+         + (IExx-IEyy)*sin(qE)*(qE'-tan(qL)*wz)*(sin(qE)*wz-cos(qE)*wx) + 0.25*
+         mE*(2*r+HE*cos(qE)-LE*sin(qE))*(LE*qE'*(sin(qE)*wz-cos(qE)*wx)-2*r*wy*
+         wz-HE*qE'*(sin(qE)*wx+cos(qE)*wz)-(qE'-tan(qL)*wz)*(HE*(sin(qE)*wx+cos
+         (qE)*wz)-LE*(sin(qE)*wz-cos(qE)*wx))) + 0.25*(4*IEzz*sin(qE)*cos(qE)-4
+         *IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*
+         sin(qE)))*wz' - mD*r^2*wy*wz - (IDyy-IDzz)*wy*wz - IExx*cos(qE)*qE'*(
+         sin(qE)*wx+cos(qE)*wz) - IEzz*sin(qE)*qE'*(sin(qE)*wz-cos(qE)*wx)
+         - (IEyy-IEzz)*cos(qE)*(qE'-tan(qL)*wz)*(sin(qE)*wx+cos(qE)*wz) - IDxx*
+         wz*qS' - 0.25*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+
+         HE*cos(qE)-LE*sin(qE))^2)*wx'
+
+-> (130) KaneDynamics[2] = mD*r^2*wx*wz + (IDxx-IDzz)*wx*wz + 0.5*mE*r*(2*r*(2+
+         tan(qL)^2)*wx*wz+cos(qE)*(HE*tan(qL)^2*wx*wz-LE*(qE'-tan(qL)*wz)^2)-2*
+         r*wx*wz/cos(qL)^2-sin(qE)*(LE*tan(qL)^2*wx*wz+HE*(qE'-tan(qL)*wz)^2)-
+         wz*(HE*(sin(qE)*wz-2*cos(qE)*wx)+LE*(cos(qE)*wz+2*sin(qE)*wx))) + (ID
+         yy+mD*r^2+mE*r^2)*wy' + 0.5*mE*r*(HE*cos(qE)-LE*sin(qE))*qE'' - 0.5*
+         mE*r*tan(qL)*(HE*cos(qE)-LE*sin(qE))*wz'
+
+-> (131) KaneDynamics[3] = IExx*sin(qE)*qE'*(sin(qE)*wx+cos(qE)*wz) + (IEyy-IE
+         zz)*sin(qE)*(qE'-tan(qL)*wz)*(sin(qE)*wx+cos(qE)*wz) + (IExx-IEyy)*cos
+         (qE)*(qE'-tan(qL)*wz)*(sin(qE)*wz-cos(qE)*wx) + (IExx-IEzz)*tan(qL)*(
+         sin(qE)*wx+cos(qE)*wz)*(sin(qE)*wz-cos(qE)*wx) + 0.25*mE*(tan(qL)*(HE*
+         sin(qE)+LE*cos(qE))*(2*r*tan(qL)*wy*wz-2*r*wx^2-(HE*cos(qE)-LE*sin(qE))
+         *wx^2-cos(qE)*(LE*tan(qL)^2*wx*wz+HE*(qE'-tan(qL)*wz)^2)-sin(qE)*(HE*
+         tan(qL)^2*wx*wz-LE*(qE'-tan(qL)*wz)^2))-(HE*sin(qE)+LE*cos(qE))*(LE*
+         qE'*(sin(qE)*wz-cos(qE)*wx)-2*r*wy*wz-HE*qE'*(sin(qE)*wx+cos(qE)*wz)-(
+         qE'-tan(qL)*wz)*(HE*(sin(qE)*wx+cos(qE)*wz)-LE*(sin(qE)*wz-cos(qE)*wx)))
+         -tan(qL)*(HE*cos(qE)-LE*sin(qE))*(2*r*(2+tan(qL)^2)*wx*wz+cos(qE)*(HE*
+         tan(qL)^2*wx*wz-LE*(qE'-tan(qL)*wz)^2)-2*r*wx*wz/cos(qL)^2-sin(qE)*(
+         LE*tan(qL)^2*wx*wz+HE*(qE'-tan(qL)*wz)^2)-wz*(HE*(sin(qE)*wz-2*cos(qE)
+         *wx)+LE*(cos(qE)*wz+2*sin(qE)*wx)))) + IDzz*wx*qS' + 0.25*(4*IEzz*sin(
+         qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*
+         cos(qE)-LE*sin(qE)))*wx' + 0.25*(4*IDzz+4*IEzz+4*IEyy*tan(qL)^2+4*(IE
+         xx-IEzz)*sin(qE)^2+mE*((HE*sin(qE)+LE*cos(qE))^2/cos(qL)^2+tan(qL)^2*(
+         HE*cos(qE)-LE*sin(qE))^2))*wz' - (IDxx-IDyy)*wx*wy - IEyy*sin(qL)*wx*
+         wz/cos(qL)^3 - IEzz*cos(qE)*qE'*(sin(qE)*wz-cos(qE)*wx) - 0.5*mE*r*tan
+         (qL)*(HE*cos(qE)-LE*sin(qE))*wy' - 0.25*tan(qL)*(4*IEyy+mE*((HE*sin(
+         qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))*qE''
+
+-> (132) KaneDynamics[4] = IEyy*wx*wz/cos(qL)^2 + 0.5*mE*r*(HE*cos(qE)-LE*sin(
+         qE))*wy' + 0.25*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*
+         sin(qE))^2))*qE'' - 0.5*g*mE*cos(qL)*(HE*sin(qE)+LE*cos(qE)) - (IExx-
+         IEzz)*(sin(qE)*wx+cos(qE)*wz)*(sin(qE)*wz-cos(qE)*wx) - 0.25*mE*((HE*
+         sin(qE)+LE*cos(qE))*(2*r*tan(qL)*wy*wz-2*r*wx^2-(HE*cos(qE)-LE*sin(qE))
+         *wx^2-cos(qE)*(LE*tan(qL)^2*wx*wz+HE*(qE'-tan(qL)*wz)^2)-sin(qE)*(HE*
+         tan(qL)^2*wx*wz-LE*(qE'-tan(qL)*wz)^2))-(HE*cos(qE)-LE*sin(qE))*(2*r*(
+         2+tan(qL)^2)*wx*wz+cos(qE)*(HE*tan(qL)^2*wx*wz-LE*(qE'-tan(qL)*wz)^2)-
+         2*r*wx*wz/cos(qL)^2-sin(qE)*(LE*tan(qL)^2*wx*wz+HE*(qE'-tan(qL)*wz)^2)
+         -wz*(HE*(sin(qE)*wz-2*cos(qE)*wx)+LE*(cos(qE)*wz+2*sin(qE)*wx))))
+         - 0.25*tan(qL)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*
+         sin(qE))^2))*wz'
+
+   (133) FactorQuadratic( KaneDynamics,  wx, wy, wz, qE')
+-> (134) KaneDynamics[1] = 0.5*g*sin(qL)*(2*mD*r+mE*(2*r+HE*cos(qE)-LE*sin(qE)))
+         + 0.5*(2*IDzz-2*IDxx-2*IDyy-2*mD*r^2-mE*r*(2*r+HE*cos(qE)-LE*sin(qE)))
+         *wy*wz + 0.5*(2*IEzz-2*IExx-2*IEyy-HE*mE*cos(qE)*(2*r+HE*cos(qE))-sin(
+         qE)*(4*IEzz*sin(qE)-4*IExx*sin(qE)-LE*mE*(2*r+2*HE*cos(qE)-LE*sin(qE))))
+         *qE'*wz + 0.5*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-HE*mE*sin
+         (qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+HE*cos(qE)-LE*sin(
+         qE)))*qE'*wx + 0.25*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*
+         (HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))*wz' - 0.25*tan(
+         qL)*(4*IDxx+4*IExx*sin(qE)^2+4*IEzz*cos(qE)^2+LE*mE*sin(qE)*(2*r-LE*
+         sin(qE))-4*IEyy-HE*mE*cos(qE)*(2*r+HE*cos(qE)-2*LE*sin(qE)))*wz^2
+         - 0.25*tan(qL)*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-HE*mE*
+         sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+HE*cos(qE)-LE*
+         sin(qE)))*wx*wz - 0.25*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2
+         -mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)*wx'
+
+-> (135) KaneDynamics[2] = mE*r*tan(qL)*(HE*sin(qE)+LE*cos(qE))*qE'*wz + 0.5*(2
+         *IDxx+2*mD*r^2+2*HE*mE*r*cos(qE)+HE*mE*r*cos(qE)*tan(qL)^2+2*mE*r^2*(2
+         +tan(qL)^2)-2*IDzz-2*LE*mE*r*sin(qE)-2*mE*r^2/cos(qL)^2-LE*mE*r*sin(
+         qE)*tan(qL)^2)*wx*wz + (IDyy+mD*r^2+mE*r^2)*wy' + 0.5*mE*r*(HE*cos(qE)
+         -LE*sin(qE))*qE'' - 0.5*mE*r*(HE*sin(qE)+LE*cos(qE))*qE'^2 - 0.5*mE*r*
+         (HE*sin(qE)+LE*cos(qE))*wz^2/cos(qL)^2 - 0.5*mE*r*tan(qL)*(HE*cos(qE)-
+         LE*sin(qE))*wz'
+
+-> (136) KaneDynamics[3] = 0.5*mE*r*(HE*sin(qE)+LE*cos(qE))*wy*wz/cos(qL)^2
+         + 0.5*(4*IExx*sin(qE)*cos(qE)+HE*mE*cos(qE)*(HE*sin(qE)+LE*cos(qE))-4*
+         IEzz*sin(qE)*cos(qE)-LE*mE*sin(qE)*(HE*sin(qE)+LE*cos(qE)))*qE'*wz
+         + 0.25*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+
+         LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))*wx' + 0.25*(4*IDzz+4*IEzz+4*
+         IEyy*tan(qL)^2+4*(IExx-IEzz)*sin(qE)^2+mE*((HE*sin(qE)+LE*cos(qE))^2/
+         cos(qL)^2+tan(qL)^2*(HE*cos(qE)-LE*sin(qE))^2))*wz' - (IDxx-IDyy-IDzz)
+         *wx*wy - 0.5*(2*IExx+4*IEzz*sin(qE)^2-2*IEyy-2*IEzz-4*IExx*sin(qE)^2-
+         mE*LE^2*cos(qE)^2-HE*mE*sin(qE)*(HE*sin(qE)+2*LE*cos(qE)))*qE'*wx
+         - 0.25*tan(qL)*(4*(IExx-IEzz)*sin(qE)*cos(qE)+2*mE*r*(HE*sin(qE)+LE*
+         cos(qE))+mE*(HE*sin(qE)+LE*cos(qE))*(HE*cos(qE)-LE*sin(qE)))*wx^2
+         - 0.25*(4*IEyy*tan(qL)+2*mE*HE^2*tan(qL)+mE*HE^2*tan(qL)^3+2*mE*r*tan(
+         qL)*(2+tan(qL)^2)*(HE*cos(qE)-LE*sin(qE))+sin(qL)*(4*IEyy+mE*LE^2-2*
+         mE*r*(HE*cos(qE)-LE*sin(qE)))/cos(qL)^3-4*IDzz*tan(qL)-4*IEzz*tan(qL)-
+         sin(qE)*tan(qL)*(4*IExx*sin(qE)+mE*HE^2*sin(qE)+2*HE*LE*mE*cos(qE)-4*
+         IEzz*sin(qE)-mE*LE^2*sin(qE)))*wx*wz - 0.5*mE*r*tan(qL)*(HE*cos(qE)-
+         LE*sin(qE))*wy' - 0.25*tan(qL)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(
+         HE*cos(qE)-LE*sin(qE))^2))*qE''
+
+-> (137) KaneDynamics[4] = 0.25*(4*(IExx-IEzz)*sin(qE)*cos(qE)+2*mE*r*(HE*sin(
+         qE)+LE*cos(qE))+mE*(HE*sin(qE)+LE*cos(qE))*(HE*cos(qE)-LE*sin(qE)))*wx^2
+         + 0.5*mE*r*(HE*cos(qE)-LE*sin(qE))*wy' + 0.25*(4*IEyy+mE*((HE*sin(qE)+
+         LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))*qE'' - 0.5*g*mE*cos(qL)*(HE*
+         sin(qE)+LE*cos(qE)) - 0.5*mE*r*tan(qL)*(HE*sin(qE)+LE*cos(qE))*wy*wz
+         - 0.25*(4*(IExx-IEzz)*sin(qE)*cos(qE)+HE*mE*sin(qE)*(HE*cos(qE)-LE*sin
+         (qE))+LE*mE*cos(qE)*(HE*cos(qE)-LE*sin(qE)))*wz^2 - 0.25*(4*IEzz+2*(4*
+         IExx-4*IEzz-mE*LE^2)*sin(qE)^2-4*IExx-mE*HE^2*tan(qL)^2-mE*LE^2*tan(
+         qL)^2-2*HE*mE*cos(qE)*(HE*cos(qE)-2*LE*sin(qE))-2*mE*r*(2+tan(qL)^2)*(
+         HE*cos(qE)-LE*sin(qE))-2*(2*IEyy-mE*r*(HE*cos(qE)-LE*sin(qE)))/cos(qL)^2)
+         *wx*wz - 0.25*tan(qL)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(
+         qE)-LE*sin(qE))^2))*wz'
+
+   (138) %--------------------------------------------------------------------
+   (139) %   Solve equations of motion for wx', wy', wz'.
+   (140) Solve( KaneDynamics = 0,  wx', wy', wz', qE'')
+-> (141) wx' = -(tan(qL)*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*
+         sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))*(mE^2*r^2*(HE*cos(qE)
+         -LE*sin(qE))^2-(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2
+         +(HE*cos(qE)-LE*sin(qE))^2)))*((4*IExx+mE*LE^2*tan(qL)^2+(4*IEzz+mE*LE^2)
+         *sin(qE)^2+2*HE*mE*cos(qE)*(HE*cos(qE)-LE*sin(qE)))*wx*wz-2*g*mE*cos(
+         qL)*(HE*sin(qE)+LE*cos(qE))-2*mE*r*tan(qL)*(HE*sin(qE)+LE*cos(qE))*wy*
+         wz-(4*(IExx-IEzz)*sin(qE)*cos(qE)+HE*mE*sin(qE)*(HE*cos(qE)-LE*sin(qE))
+         +LE*mE*cos(qE)*(HE*cos(qE)-LE*sin(qE)))*wz^2)-(4*IEzz*sin(qE)*cos(qE)-
+         4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*
+         sin(qE)))*(mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2-(IDyy+mD*r^2+mE*r^2)*(4*
+         IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2)))*(4*(
+         IDxx-IDyy-IDzz)*wx*wy+2*(2*IExx+4*IEzz*sin(qE)^2-2*IEyy-2*IEzz-4*IExx*
+         sin(qE)^2-mE*LE^2*cos(qE)^2-HE*mE*sin(qE)*(HE*sin(qE)+2*LE*cos(qE)))*
+         qE'*wx-2*mE*r*(HE*sin(qE)+LE*cos(qE))*wy*wz/cos(qL)^2-(4*IDzz*tan(qL)-
+         4*IEyy*tan(qL)-2*mE*HE^2*tan(qL)-mE*LE^2*sin(qL)/cos(qL)^3-(4*IExx-mE*HE^2)
+         *tan(qL)*sin(qE)^2)*wx*wz-2*(4*IExx*sin(qE)*cos(qE)+HE*mE*cos(qE)*(HE*
+         sin(qE)+LE*cos(qE))-4*IEzz*sin(qE)*cos(qE)-LE*mE*sin(qE)*(HE*sin(qE)+
+         LE*cos(qE)))*qE'*wz)-((IDyy+mD*r^2+mE*r^2)*tan(qL)^2*(4*IEyy+mE*((HE*
+         sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))^2+mE^2*r^2*(HE*cos(
+         qE)-LE*sin(qE))^2*(4*IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(
+         qE)+LE*cos(qE))^2)-(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos
+         (qE))^2+(HE*cos(qE)-LE*sin(qE))^2))*(4*IDzz+4*IEzz+4*IEyy*tan(qL)^2+4*
+         (IExx-IEzz)*sin(qE)^2+mE*((HE*sin(qE)+LE*cos(qE))^2/cos(qL)^2+tan(qL)^2
+         *(HE*cos(qE)-LE*sin(qE))^2)))*(2*g*sin(qL)*(2*mD*r+mE*(2*r+HE*cos(qE)-
+         LE*sin(qE)))+2*(2*IDzz-2*IDxx-2*IDyy-2*mD*r^2-mE*r*(2*r+HE*cos(qE)-LE*
+         sin(qE)))*wy*wz+2*(2*IEzz-2*IExx-2*IEyy-HE*mE*cos(qE)*(2*r+HE*cos(qE))
+         -sin(qE)*(4*IEzz*sin(qE)-4*IExx*sin(qE)-LE*mE*(2*r+2*HE*cos(qE)-LE*sin
+         (qE))))*qE'*wz+2*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-HE*mE*
+         sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+HE*cos(qE)-LE*
+         sin(qE)))*qE'*wx-tan(qL)*(4*IDxx+4*IExx*sin(qE)^2+4*IEzz*cos(qE)^2+LE*
+         mE*sin(qE)*(2*r-LE*sin(qE))-4*IEyy-HE*mE*cos(qE)*(2*r+HE*cos(qE)-2*LE*
+         sin(qE)))*wz^2-tan(qL)*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-
+         HE*mE*sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+HE*cos(
+         qE)-LE*sin(qE)))*wx*wz))/(mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2*(4*IEzz*
+         sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r
+         +HE*cos(qE)-LE*sin(qE)))^2+mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2*(4*IDzz+
+         4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(qE))^2)*(4*(IExx-
+         IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)
+         -(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(
+         qE)-LE*sin(qE))^2))*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*
+         (HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))^2-(IDyy+mD*r^2+
+         mE*r^2)*(4*IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(
+         qE))^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))
+         *(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-
+         LE*sin(qE))^2))
+
+-> (142) wy' = 0.5*(mE*tan(qL)^2*(HE*sin(qE)+LE*cos(qE))^2*(4*(IExx-IEzz)*sin(
+         qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)-(4*IEzz
+         *sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*
+         r+HE*cos(qE)-LE*sin(qE)))^2-(4*IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*
+         (HE*sin(qE)+LE*cos(qE))^2/cos(qL)^2)*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4
+         *IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2))*((4*IEyy+mE*((HE*sin
+         (qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))*(mE*r*(HE*sin(qE)+LE*
+         cos(qE))*qE'^2+mE*r*(HE*sin(qE)+LE*cos(qE))*wz^2/cos(qL)^2-2*mE*r*tan(
+         qL)*(HE*sin(qE)+LE*cos(qE))*qE'*wz-(2*IDxx+2*mD*r^2+2*HE*mE*r*cos(qE)+
+         HE*mE*r*cos(qE)*tan(qL)^2+2*mE*r^2*(2+tan(qL)^2)-2*IDzz-2*LE*mE*r*sin(
+         qE)-2*mE*r^2/cos(qL)^2-LE*mE*r*sin(qE)*tan(qL)^2)*wx*wz)+mE*r*(HE*cos(
+         qE)-LE*sin(qE))*((4*(IExx-IEzz)*sin(qE)*cos(qE)+2*mE*r*(HE*sin(qE)+LE*
+         cos(qE))+mE*(HE*sin(qE)+LE*cos(qE))*(HE*cos(qE)-LE*sin(qE)))*wx^2-2*g*
+         mE*cos(qL)*(HE*sin(qE)+LE*cos(qE))-2*mE*r*tan(qL)*(HE*sin(qE)+LE*cos(
+         qE))*wy*wz-(4*(IExx-IEzz)*sin(qE)*cos(qE)+HE*mE*sin(qE)*(HE*cos(qE)-
+         LE*sin(qE))+LE*mE*cos(qE)*(HE*cos(qE)-LE*sin(qE)))*wz^2-(4*IEzz+2*(4*
+         IExx-4*IEzz-mE*LE^2)*sin(qE)^2-4*IExx-mE*HE^2*tan(qL)^2-mE*LE^2*tan(
+         qL)^2-2*HE*mE*cos(qE)*(HE*cos(qE)-2*LE*sin(qE))-2*mE*r*(2+tan(qL)^2)*(
+         HE*cos(qE)-LE*sin(qE))-2*(2*IEyy-mE*r*(HE*cos(qE)-LE*sin(qE)))/cos(qL)^2)
+         *wx*wz))/(mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2*(4*IEzz*sin(qE)*cos(qE)-4
+         *IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*
+         sin(qE)))^2+mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2*(4*IDzz+4*IEzz+4*(IExx-
+         IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(qE))^2)*(4*(IExx-IEzz)*sin(qE)^2
+         -4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)-(IDyy+mD*r^2
+         +mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))
+         *(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(
+         qE))*(2*r+HE*cos(qE)-LE*sin(qE)))^2-(IDyy+mD*r^2+mE*r^2)*(4*IDzz+4*IE
+         zz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(qE))^2)*(4*IEyy+mE*((
+         HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2))*(4*(IExx-IEzz)*
+         sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2))
+
+-> (143) wz' = (mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2-(IDyy+mD*r^2+mE*r^2)*(4*IEyy
+         +mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2)))*((4*(IExx-
+         IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)
+         *(4*(IDxx-IDyy-IDzz)*wx*wy+2*(2*IExx+4*IEzz*sin(qE)^2-2*IEyy-2*IEzz-4*
+         IExx*sin(qE)^2-mE*LE^2*cos(qE)^2-HE*mE*sin(qE)*(HE*sin(qE)+2*LE*cos(
+         qE)))*qE'*wx-2*mE*r*(HE*sin(qE)+LE*cos(qE))*wy*wz/cos(qL)^2-(4*IDzz*
+         tan(qL)-4*IEyy*tan(qL)-2*mE*HE^2*tan(qL)-mE*LE^2*sin(qL)/cos(qL)^3-(4*
+         IExx-mE*HE^2)*tan(qL)*sin(qE)^2)*wx*wz-2*(4*IExx*sin(qE)*cos(qE)+HE*
+         mE*cos(qE)*(HE*sin(qE)+LE*cos(qE))-4*IEzz*sin(qE)*cos(qE)-LE*mE*sin(
+         qE)*(HE*sin(qE)+LE*cos(qE)))*qE'*wz)-tan(qL)*(4*(IExx-IEzz)*sin(qE)^2-
+         4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)*((4*IExx+mE*LE^2
+         *tan(qL)^2+(4*IEzz+mE*LE^2)*sin(qE)^2+2*HE*mE*cos(qE)*(HE*cos(qE)-LE*
+         sin(qE)))*wx*wz-2*g*mE*cos(qL)*(HE*sin(qE)+LE*cos(qE))-2*mE*r*tan(qL)*
+         (HE*sin(qE)+LE*cos(qE))*wy*wz-(4*(IExx-IEzz)*sin(qE)*cos(qE)+HE*mE*sin
+         (qE)*(HE*cos(qE)-LE*sin(qE))+LE*mE*cos(qE)*(HE*cos(qE)-LE*sin(qE)))*wz^2)
+         -(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(
+         qE))*(2*r+HE*cos(qE)-LE*sin(qE)))*(2*g*sin(qL)*(2*mD*r+mE*(2*r+HE*cos(
+         qE)-LE*sin(qE)))+2*(2*IDzz-2*IDxx-2*IDyy-2*mD*r^2-mE*r*(2*r+HE*cos(qE)
+         -LE*sin(qE)))*wy*wz+2*(2*IEzz-2*IExx-2*IEyy-HE*mE*cos(qE)*(2*r+HE*cos(
+         qE))-sin(qE)*(4*IEzz*sin(qE)-4*IExx*sin(qE)-LE*mE*(2*r+2*HE*cos(qE)-
+         LE*sin(qE))))*qE'*wz+2*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-
+         HE*mE*sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+HE*cos(
+         qE)-LE*sin(qE)))*qE'*wx-tan(qL)*(4*IDxx+4*IExx*sin(qE)^2+4*IEzz*cos(
+         qE)^2+LE*mE*sin(qE)*(2*r-LE*sin(qE))-4*IEyy-HE*mE*cos(qE)*(2*r+HE*cos(
+         qE)-2*LE*sin(qE)))*wz^2-tan(qL)*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)
+         *cos(qE)-HE*mE*sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+
+         HE*cos(qE)-LE*sin(qE)))*wx*wz))/(mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2*(4
+         *IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))
+         *(2*r+HE*cos(qE)-LE*sin(qE)))^2+mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2*(4*
+         IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(qE))^2)*(4*(
+         IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(
+         qE))^2)-(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(
+         HE*cos(qE)-LE*sin(qE))^2))*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(
+         qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))^2-(IDyy+
+         mD*r^2+mE*r^2)*(4*IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+
+         LE*cos(qE))^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-LE*
+         sin(qE))^2))*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+
+         HE*cos(qE)-LE*sin(qE))^2))
+
+-> (144) qE'' = -(mE*r*(HE*cos(qE)-LE*sin(qE))*(mE*tan(qL)^2*(HE*sin(qE)+LE*cos
+         (qE))^2*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos
+         (qE)-LE*sin(qE))^2)-(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*
+         (HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))^2-(4*IDzz+4*IEzz+
+         4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(qE))^2/cos(qL)^2)*(4*(
+         IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(
+         qE))^2))*(mE*r*(HE*sin(qE)+LE*cos(qE))*qE'^2+mE*r*(HE*sin(qE)+LE*cos(
+         qE))*wz^2/cos(qL)^2-2*mE*r*tan(qL)*(HE*sin(qE)+LE*cos(qE))*qE'*wz-(2*
+         IDxx+2*mD*r^2+2*HE*mE*r*cos(qE)+HE*mE*r*cos(qE)*tan(qL)^2+2*mE*r^2*(2+
+         tan(qL)^2)-2*IDzz-2*LE*mE*r*sin(qE)-2*mE*r^2/cos(qL)^2-LE*mE*r*sin(qE)
+         *tan(qL)^2)*wx*wz)+tan(qL)*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(
+         qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))*(mE^2*r^2*
+         (HE*cos(qE)-LE*sin(qE))^2-(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)
+         +LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2)))*(2*g*sin(qL)*(2*mD*r+mE*(2
+         *r+HE*cos(qE)-LE*sin(qE)))+2*(2*IDzz-2*IDxx-2*IDyy-2*mD*r^2-mE*r*(2*r+
+         HE*cos(qE)-LE*sin(qE)))*wy*wz+2*(2*IEzz-2*IExx-2*IEyy-HE*mE*cos(qE)*(2
+         *r+HE*cos(qE))-sin(qE)*(4*IEzz*sin(qE)-4*IExx*sin(qE)-LE*mE*(2*r+2*HE*
+         cos(qE)-LE*sin(qE))))*qE'*wz+2*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*
+         cos(qE)-HE*mE*sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(qE)*(2*r+
+         HE*cos(qE)-LE*sin(qE)))*qE'*wx-tan(qL)*(4*IDxx+4*IExx*sin(qE)^2+4*IEzz
+         *cos(qE)^2+LE*mE*sin(qE)*(2*r-LE*sin(qE))-4*IEyy-HE*mE*cos(qE)*(2*r+
+         HE*cos(qE)-2*LE*sin(qE)))*wz^2-tan(qL)*(4*IEzz*sin(qE)*cos(qE)-4*IExx*
+         sin(qE)*cos(qE)-HE*mE*sin(qE)*(2*r+HE*cos(qE)-LE*sin(qE))-LE*mE*cos(
+         qE)*(2*r+HE*cos(qE)-LE*sin(qE)))*wx*wz)+tan(qL)*(4*(IExx-IEzz)*sin(qE)^2
+         -4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)*(mE^2*r^2*(
+         HE*cos(qE)-LE*sin(qE))^2-(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+
+         LE*cos(qE))^2+(HE*cos(qE)-LE*sin(qE))^2)))*(2*mE*r*(HE*sin(qE)+LE*cos(
+         qE))*wy*wz/cos(qL)^2+2*(4*IExx*sin(qE)*cos(qE)+HE*mE*cos(qE)*(HE*sin(
+         qE)+LE*cos(qE))-4*IEzz*sin(qE)*cos(qE)-LE*mE*sin(qE)*(HE*sin(qE)+LE*
+         cos(qE)))*qE'*wz-4*(IDxx-IDyy-IDzz)*wx*wy-2*(2*IExx+4*IEzz*sin(qE)^2-2
+         *IEyy-2*IEzz-4*IExx*sin(qE)^2-mE*LE^2*cos(qE)^2-HE*mE*sin(qE)*(HE*sin(
+         qE)+2*LE*cos(qE)))*qE'*wx-tan(qL)*(4*(IExx-IEzz)*sin(qE)*cos(qE)+2*mE*
+         r*(HE*sin(qE)+LE*cos(qE))+mE*(HE*sin(qE)+LE*cos(qE))*(HE*cos(qE)-LE*
+         sin(qE)))*wx^2-(4*IEyy*tan(qL)+2*mE*HE^2*tan(qL)+mE*HE^2*tan(qL)^3+2*
+         mE*r*tan(qL)*(2+tan(qL)^2)*(HE*cos(qE)-LE*sin(qE))+sin(qL)*(4*IEyy+mE*LE^2
+         -2*mE*r*(HE*cos(qE)-LE*sin(qE)))/cos(qL)^3-4*IDzz*tan(qL)-4*IEzz*tan(
+         qL)-sin(qE)*tan(qL)*(4*IExx*sin(qE)+mE*HE^2*sin(qE)+2*HE*LE*mE*cos(qE)
+         -4*IEzz*sin(qE)-mE*LE^2*sin(qE)))*wx*wz)+(mE^2*r^2*tan(qL)^2*(HE*cos(
+         qE)-LE*sin(qE))^2*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(
+         2*r+HE*cos(qE)-LE*sin(qE))^2)-(IDyy+mD*r^2+mE*r^2)*(4*IEzz*sin(qE)*cos
+         (qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)
+         -LE*sin(qE)))^2-(IDyy+mD*r^2+mE*r^2)*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4
+         *IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*sin(qE))^2)*(4*IDzz+4*IEzz+4*IEyy
+         *tan(qL)^2+4*(IExx-IEzz)*sin(qE)^2+mE*((HE*sin(qE)+LE*cos(qE))^2/cos(
+         qL)^2+tan(qL)^2*(HE*cos(qE)-LE*sin(qE))^2)))*((4*(IExx-IEzz)*sin(qE)*
+         cos(qE)+2*mE*r*(HE*sin(qE)+LE*cos(qE))+mE*(HE*sin(qE)+LE*cos(qE))*(HE*
+         cos(qE)-LE*sin(qE)))*wx^2-2*g*mE*cos(qL)*(HE*sin(qE)+LE*cos(qE))-2*mE*
+         r*tan(qL)*(HE*sin(qE)+LE*cos(qE))*wy*wz-(4*(IExx-IEzz)*sin(qE)*cos(qE)
+         +HE*mE*sin(qE)*(HE*cos(qE)-LE*sin(qE))+LE*mE*cos(qE)*(HE*cos(qE)-LE*
+         sin(qE)))*wz^2-(4*IEzz+2*(4*IExx-4*IEzz-mE*LE^2)*sin(qE)^2-4*IExx-mE*HE^2
+         *tan(qL)^2-mE*LE^2*tan(qL)^2-2*HE*mE*cos(qE)*(HE*cos(qE)-2*LE*sin(qE))
+         -2*mE*r*(2+tan(qL)^2)*(HE*cos(qE)-LE*sin(qE))-2*(2*IEyy-mE*r*(HE*cos(
+         qE)-LE*sin(qE)))/cos(qL)^2)*wx*wz))/(mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2
+         *(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*cos(qE)-mE*(HE*sin(qE)+LE*cos(
+         qE))*(2*r+HE*cos(qE)-LE*sin(qE)))^2+mE^2*r^2*(HE*cos(qE)-LE*sin(qE))^2
+         *(4*IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(qE)+LE*cos(qE))^2)*
+         (4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*r+HE*cos(qE)-LE*
+         sin(qE))^2)-(IDyy+mD*r^2+mE*r^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2
+         +(HE*cos(qE)-LE*sin(qE))^2))*(4*IEzz*sin(qE)*cos(qE)-4*IExx*sin(qE)*
+         cos(qE)-mE*(HE*sin(qE)+LE*cos(qE))*(2*r+HE*cos(qE)-LE*sin(qE)))^2-(ID
+         yy+mD*r^2+mE*r^2)*(4*IDzz+4*IEzz+4*(IExx-IEzz)*sin(qE)^2+mE*(HE*sin(
+         qE)+LE*cos(qE))^2)*(4*IEyy+mE*((HE*sin(qE)+LE*cos(qE))^2+(HE*cos(qE)-
+         LE*sin(qE))^2))*(4*(IExx-IEzz)*sin(qE)^2-4*IDxx-4*IExx-4*mD*r^2-mE*(2*
+         r+HE*cos(qE)-LE*sin(qE))^2))
+
+   (145) %--------------------------------------------------------------------
+   (146) %   Integration parameters and initial values.
+   (147) Input  tFinal = 12 sec,  tStep = 0.05 sec,  absError = 1.0E-08
+   (148) Input  x = 0 m,  y = 0 m,  qH = 0 deg,  qL = 10 deg,  qS = 0 deg
+   (149) Input  wx = 0 rad/sec,  wy = 5 rad/sec,  wz = 0 rad/sec
+   (150) %---------------------------------------------------------------
+   (151) %   List output quantities and solve ODEs.
+   (152) Output  t sec,  x meters,  y meters,  qL degrees,  qH degrees
+   (153) ODE() RollingDiskDynamics
+
+   (154) %--------------------------------------------------------------------
+</PRE>
+<DIV class="BoldDarkBlueNoWrap" STYLE="font-size:x-small;">Saved by Stanford ME331 Student. &nbsp; Command names and syntax: Copyright (c) 2009-2021 Motion Genesis LLC.  All rights reserved.</DIV>
+</BODY></HTML>

@@ -1,6 +1,6 @@
 % --- LEFT RIGID ---
 % SetWorkingDirectory(~/Documents/ME 331)
-% run LeftRigid.txt
+% run LeftRigid.m
 
 % --- FRAMES, BODIES, POINTS ---
 NewtonianFrame N

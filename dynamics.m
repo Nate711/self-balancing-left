@@ -101,7 +101,7 @@ E.SetAngularVelocity( B, wE * By> )
 % Contact points
 % DN.SetPositionVelocity(Do, -R_hub_D * Cz> - R_tire_D * Nz> ) % front wheel
 % EN.SetPositionVelocity(Eo, -R_hub_E * Bz> - R_tire_E * Nz> ) % back wheel
-DN.SetPositionVelocity(Do, -R_hub_D * Cz> ) % front wheel
+DN.SetPositionVelocity(Do, -R_hub_D * Cz> ) % front wheel WRONG WRONG WRONG
 EN.SetPositionVelocity(Eo, -R_hub_E * Bz> ) % back wheel
 
 % --- MOTION CONSTRAINTS ---
